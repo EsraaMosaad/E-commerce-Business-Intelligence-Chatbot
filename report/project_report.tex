@@ -1,0 +1,396 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{geometry}
+\geometry{margin=1in}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=blue,
+    pdftitle={E-commerce Business Intelligence Chatbot — Group 25fltp},
+    pdfauthor={CISC 886 — Queen's University}
+}
+
+\title{\textbf{E-commerce Business Intelligence Chatbot}\\
+\large Cloud Computing Project — CISC 886\\
+Group 25fltp}
+\author{
+    \textbf{Person 1 (Data Engineering)} — EMR Preprocessing\\
+    \textbf{Person 2 (Model Fine-Tuning)} — QLoRA Fine-tuning\\
+    \textbf{Person 3 (Deployment)} — EC2 + OpenWebUI
+}
+\date{\today}
+
+\begin{document}
+\maketitle
+\thispagestyle{empty}
+\vspace{1em}
+
+\begin{abstract}
+This project implements an end-to-end cloud-based conversational chatbot specialized for e-commerce business intelligence. The system processes large-scale Amazon Reviews 2023 data across 9 categories using AWS EMR (PySpark), fine-tunes TinyLlama-1.1B using QLoRA technique, and deploys the resulting GGUF model on AWS EC2 with a RAG-augmented web interface. The chatbot answers three core business queries: SWOT Analysis, Competitor Comparison, and Market Trends Analysis. All infrastructure is managed as code using Terraform and CI/CD is implemented via GitHub Actions.
+\end{abstract}
+
+\section{Introduction}
+\label{sec:intro}
+
+The e-commerce industry generates massive amounts of structured and unstructured data daily. Extracting actionable business intelligence from this data requires both scalable data processing and intelligent natural language interfaces. This project addresses this challenge by building a domain-specific chatbot that can analyze e-commerce companies, compare competitors, and identify market trends.
+
+\subsection{Project Scope}
+
+The chatbot is designed to answer three categories of business queries:
+
+\begin{enumerate}
+    \item \textbf{SWOT Analysis} — Structured strengths, weaknesses, opportunities, and threats for e-commerce companies (Amazon, Alibaba, Walmart).
+    \item \textbf{Competitor Comparison} — Multi-dimensional comparison across pricing, logistics, AI capabilities, assortment, and customer experience.
+    \item \textbf{Market Trends Analysis} — Current and emerging trends in e-commerce including delivery, pricing, AI, and sustainability.
+\end{enumerate}
+
+\subsection{Team Structure}
+
+\begin{table}[h!]
+\centering
+\caption{Team Responsibilities}
+\begin{tabular}{llp{6cm}}
+\toprule
+Person & Role & Responsibilities \\
+\midrule
+Person 1 & Data Engineering & EMR preprocessing, PySpark pipeline, S3 pipeline, data quality \\
+Person 2 & Model Fine-tuning & Colab notebook, QLoRA fine-tuning, GGUF export, RAG backend \\
+Person 3 & Deployment & VPC, EC2, Ollama, OpenWebUI, Terraform, CI/CD \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{System Architecture}
+\label{sec:architecture}
+
+Figure~\ref{fig:architecture} illustrates the end-to-end system architecture.
+
+\begin{figure}[htbp]
+\centering
+\fbox{\parbox{0.9\linewidth}{
+\textbf{Data Layer (Person 1)}\\
+$\downarrow$ Amazon Reviews 2023 (HuggingFace, 9 categories)\\[0.5em]
+\textbf{Processing Layer}\\$\downarrow$ AWS EMR (PySpark) $\rightarrow$ S3 Bucket\\
+\textbf{Training Layer (Person 2)}\\
+$\uparrow$ S3 processed data\\
+$\downarrow$ Google Colab (QLoRA Fine-tuning)\\
+\textbf{Export Layer}\\$\downarrow$ GGUF Format (Q4\_K\_M, $\sim$668 MB)\\
+\textbf{Deployment Layer (Person 3)}\\
+$\uparrow$ S3 GGUF upload\\
+$\downarrow$ AWS EC2 (Ollama + OpenWebUI + FAISS RAG)\\[0.5em]
+\textbf{Infrastructure as Code}\\
+Terraform (VPC + EMR + EC2 + S3 + IAM)\\
+GitHub Actions CI/CD
+}}
+\caption{System Architecture Overview}
+\label{fig:architecture}
+\end{figure}
+
+\subsection{Technology Stack}
+
+\begin{table}[h!]
+\centering
+\caption{Technology Stack}
+\begin{tabular}{ll}
+\toprule
+Component & Technology \\
+\midrule
+Data Processing & AWS EMR 7.1.0, PySpark \\
+LLM Fine-tuning & TinyLlama-1.1B, QLoRA, Unsloth, TRL \\
+Model Format & GGUF (Q4\_K\_M quantization via llama.cpp) \\
+LLM Runtime & Ollama \\
+Web Interface & OpenWebUI (:3000) \\
+RAG & FAISS + sentence-transformers (all-MiniLM-L6-v2) \\
+Cloud Infrastructure & AWS EC2, S3, IAM, VPC \\
+IaC & Terraform \\
+CI/CD & GitHub Actions \\
+Dataset & McAuley-Lab/Amazon-Reviews-2023 (HuggingFace) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Person 1: Data Preprocessing}
+\label{sec:person1}
+
+\textbf{Goal:} Process raw Amazon Reviews 2023 data into structured training sets.
+
+\subsection{Dataset Overview}
+
+The McAuley-Lab/Amazon-Reviews-2023 dataset contains millions of reviews across 9 categories:
+
+\begin{itemize}
+    \item Electronics
+    \item Clothing\_Shoes\_and\_Jewelry
+    \item Home\_and\_Kitchen
+    \item Books
+    \item Sports\_and\_Outdoors
+    \item Beauty\_and\_Personal\_Care
+    \item Toys\_and\_Games
+    \item Food\_and\_Beverages
+    \item Pet\_Supplies
+\end{itemize}
+
+\subsection{PySpark Pipeline}
+
+The preprocessing pipeline (\texttt{spark/spark\_preprocess.py}) performs:
+
+\begin{enumerate}
+    \item Load raw JSONL reviews from S3
+    \item Clean and filter reviews (remove empty text, filter by rating)
+    \item Extract structured fields (rating, title, text, helpful votes)
+    \item Group by \texttt{parent\_asin} for product-level aggregation
+    \item Split 80/10/10 into train/val/test by product
+    \item Save processed data to S3 as JSONL
+\end{enumerate}
+
+\subsection{EMR Cluster Configuration}
+
+\begin{verbatim}
+Cluster Name: 25fltp-ecom-spark-cluster
+Release: emr-7.1.0
+Applications: Spark, JupyterHub, Hadoop
+Master Instance: m5.xlarge (4 vCPU, 16 GB RAM)
+Core Instances: 2 × m5.xlarge
+Bootstrap: s3://25fltp-ecom-chatbot/scripts/emr_bootstrap.sh
+\end{verbatim}
+
+\section{Person 2: Model Fine-tuning}
+\label{sec:person2}
+
+\textbf{Goal:} Fine-tune TinyLlama-1.1B on e-commerce BI instruction data and export to GGUF.
+
+\subsection{Base Model}
+
+\begin{table}[h!]
+\centering
+\caption{TinyLlama Model Specifications}
+\begin{tabular}{ll}
+\toprule
+Property & Value \\
+\midrule
+Model ID & TinyLlama/TinyLlama-1.1B-Chat-v1.0 \\
+Parameters & 1.1 billion \\
+Context Length & 2048 tokens \\
+License & Apache 2.0 \\
+Base Model & Sharon/WizardLM-UnaCrypt-1.1B \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{QLoRA Fine-tuning Configuration}
+
+QLoRA combines 4-bit NF4 quantization with LoRA adapters:
+
+\begin{table}[h!]
+\centering
+\caption{QLoRA Hyperparameters}
+\begin{tabular}{ll}
+\toprule
+Parameter & Value \\
+\midrule
+Quantization & 4-bit NF4 \\
+LoRA Rank (r) & 16 \\
+LoRA Alpha & 32 \\
+LoRA Dropout & 0.05 \\
+Target Modules & q_proj, k\_proj, v\_proj, o\_proj, gate\_proj, up\_proj, down\_proj \\
+Max Sequence Length & 2048 \\
+Learning Rate & 2e-4 \\
+Scheduler & cosine with warmup \\
+Warmup Steps & 100 \\
+Batch Size & 4 (effective 16 with gradient accumulation) \\
+Epochs & 2 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Training Data Generation}
+
+Instruction pairs are generated using a template-based approach with 7 task types:
+
+\begin{enumerate}
+    \item \textbf{SWOT Analysis} — Analyze company strengths, weaknesses, opportunities, threats
+    \item \textbf{Competitor Comparison} — Compare across pricing, logistics, AI, assortment, CX
+    \item \textbf{Market Trends} — Identify current e-commerce trends
+    \item \textbf{Product Category Analysis} — Analyze specific product categories
+    \item \textbf{Customer Sentiment} — Analyze customer review sentiment
+    \item \textbf{Pricing \& Delivery} — Analyze pricing strategies and delivery options
+    \item \textbf{Review Intelligence} — Deep review analysis and summarization
+\end{enumerate}
+
+\textbf{Data Statistics:}
+\begin{itemize}
+    \item Categories: 9
+    \item Samples per category: 10,000
+    \item Total raw samples: 90,000
+    \item After filtering: $\sim$65,000 clean instruction pairs
+    \item Training examples used: 7,256 (Electronics subset)
+    \item Training time: $\sim$33 minutes
+    \item Final loss: 2.36 $\rightarrow$ 0.55
+\end{itemize}
+
+\subsection{GGUF Export}
+
+The fine-tuned model is exported using llama.cpp via Unsloth:
+
+\begin{verbatim}
+Output Path: ./outputs/ecom_chatbot_gguf_gguf_gguf_gguf/
+Filename: tinyllama-chat.Q4_K_M.gguf
+Size: ~668 MB
+Quantization: Q4_K_M (4-bit K-Quant Medium)
+\end{verbatim}
+
+Note: Unsloth 2026.4.8 creates a \textbf{quadruple-nested} directory structure.
+
+\section{Person 3: Deployment}
+\label{sec:person3}
+
+\textbf{Goal:} Deploy GGUF model on AWS EC2 with RAG-augmented web interface.
+
+\subsection{EC2 Instance Configuration}
+
+\begin{verbatim}
+Instance Type: t3.large (2 vCPU, 8 GB RAM)
+AMI: Ubuntu 22.04 LTS
+Root Volume: 100 GB
+Key Pair: 25fltp-ecom-key
+Security Groups:
+  - SSH (22): Your IP only
+  - HTTP (3000): Your IP only (OpenWebUI)
+  - Ollama (11434): localhost only
+\end{verbatim}
+
+\subsection{Ollama Deployment}
+
+\begin{enumerate}
+    \item Install Ollama: \texttt{curl -fsSL https://ollama.com/install.sh | sh}
+    \item Download GGUF from S3: \texttt{aws s3 cp s3://25fltp-ecom-chatbot/model/...}
+    \item Create Modelfile with system prompt and generation parameters
+    \item Register model: \texttt{ollama create ecom-chatbot -f Modelfile}
+    \item Start service: \texttt{ollama serve \&}
+\end{enumerate}
+
+\subsection{OpenWebUI Installation}
+
+OpenWebUI provides a browser-based chat interface:
+
+\begin{verbatim}
+URL: http://<ec2_public_ip>:3000
+Ollama Base URL: http://localhost:11434
+\end{verbatim}
+
+\subsection{RAG Layer}
+
+The RAG layer (\texttt{deployment/backend\_rag.py}) uses:
+
+\begin{itemize}
+    \item \textbf{Embeddings:} sentence-transformers (all-MiniLM-L6-v2)
+    \item \textbf{Vector Store:} FAISS
+    \item \textbf{Knowledge Base:} Amazon, Alibaba, Walmart profiles + market trends
+\end{itemize}
+
+\section{Terraform Infrastructure as Code}
+\label{sec:terraform}
+
+The complete infrastructure is defined in Terraform (\texttt{terraform/main.tf}):
+
+\begin{enumerate}
+    \item \textbf{VPC:} 10.0.0.0/16 with Internet Gateway
+    \item \textbf{Subnet:} Public subnet 10.0.1.0/24
+    \item \textbf{Security Groups:} EC2 (SSH + HTTP) and EMR (internal)
+    \item \textbf{IAM Roles:} EC2-S3 and EMR-S3-EC2 with instance profiles
+    \item \textbf{EMR Cluster:} emr-7.1.0 with Spark + JupyterHub + Hadoop
+    \item \textbf{EC2 Instance:} t3.large with user\_data.sh cloud-init
+    \item \textbf{S3 Buckets:} 25fltp-ecom-chatbot (model storage) and 25fltp-terraform-state (backend)
+\end{enumerate}
+
+\section{GitHub Actions CI/CD}
+\label{sec:cicd}
+
+Two workflows automate the deployment:
+
+\subsection{terraform.yml}
+
+\begin{itemize}
+    \item \textbf{terraform-validate:} Format check + validate on push/PR
+    \item \textbf{terraform-plan:} Plan on PR, comment on PR
+    \item \textbf{terraform-apply:} Apply on push to main
+    \item \textbf{terraform-destroy:} Destroy on branch delete
+\end{itemize}
+
+\subsection{upload\_model.yml}
+
+Manual workflow to upload GGUF model to S3:
+\begin{verbatim}
+Trigger: workflow_dispatch
+Input: gguf_file_path
+S3 Bucket: 25fltp-ecom-chatbot/model/
+\end{verbatim}
+
+\section{Results}
+\label{sec:results}
+
+\subsection{Training Results}
+
+\begin{table}[h!]
+\centering
+\caption{Training Performance}
+\begin{tabular}{ll}
+\toprule
+Metric & Value \\
+\midrule
+Training Samples & 7,256 \\
+Training Time & 33.4 minutes \\
+Initial Loss & 2.36 \\
+Final Loss & 0.55 \\
+GGUF Size & 668 MB \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Sample Outputs}
+
+\textbf{SWOT Analysis Query:}
+\begin{verbatim}
+Prompt: Give me a SWOT analysis for Amazon in e-commerce.
+Response:
+- Strengths: Prime ecosystem, logistics network, AWS revenue
+- Weaknesses: Third-party seller fees, regulatory scrutiny
+- Opportunities: AI integration, grocery expansion, emerging markets
+- Threats: Alibaba Tmall, Temu pricing, eBay niche markets
+\end{verbatim}
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+This project demonstrates a complete end-to-end cloud-based AI application:
+
+\begin{itemize}
+    \item \textbf{Data Engineering:} Scalable PySpark processing on EMR
+    \item \textbf{Model Fine-tuning:} Efficient QLoRA on consumer GPU (T4)
+    \item \textbf{Deployment:} Containerized GGUF runtime on EC2
+    \item \textbf{CI/CD:} Automated infrastructure with GitHub Actions
+    \item \textbf{IaC:} Reproducible infrastructure with Terraform
+\end{itemize}
+
+The chatbot successfully answers e-commerce business intelligence queries with structured, evidence-based responses.
+
+\section{References}
+
+\begin{enumerate}
+    \item TinyLlama: Zhang et al., \textit{TinyLlama: An Open Small Language Model}, arXiv:2401.02385 (2024)
+    \item LoRA: Hu et al., \textit{Lora: Low-rank adaptation of large language models}, ICLR 2022
+    \item QLoRA: Dettmers et al., \textit{QLoRA: Efficient Finetuning of Quantized LLMs}, NeurIPS 2023
+    \item Amazon Reviews 2023: Hou et al., \textit{Amazon Review Data}, arXiv:2403.03952 (2024)
+    \item Unsloth: \url{https://unsloth.ai}
+    \item Ollama: \url{https://ollama.com}
+    \item OpenWebUI: \url{https://openwebui.com}
+    \item Terraform: \url{https://terraform.io}
+\end{enumerate}
+
+\end{document}

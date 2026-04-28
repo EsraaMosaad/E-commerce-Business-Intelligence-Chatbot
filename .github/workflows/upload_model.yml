@@ -1,0 +1,71 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Group 25fltp — E-commerce BI Chatbot
+# GitHub Actions: Upload Fine-Tuned GGUF Model to S3
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Upload Fine-Tuned Model to S3 (25fltp)
+
+on:
+  workflow_dispatch:
+    inputs:
+      gguf_file_path:
+        description: 'Path to GGUF model file (local)'
+        required: true
+        default: 'outputs/ecom_chatbot_gguf_gguf_gguf_gguf/tinyllama-chat.Q4_K_M.gguf'
+
+env:
+  S3_BUCKET: '25fltp-ecom-chatbot'
+  MODEL_KEY: 'model/tinyllama-chat.Q4_K_M.gguf'
+
+jobs:
+  upload-model:
+    name: Upload GGUF Model to S3
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials (25fltp)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Set common metadata
+        run: |
+          echo "Model: TinyLlama-1.1B Fine-tuned (QLoRA)"
+          echo "Size: ~668 MB"
+          echo "S3 Bucket: ${{ env.S3_BUCKET }}"
+          echo "Date: $(date -u +%Y-%m-%d)"
+
+      - name: Upload GGUF Model to S3
+        run: |
+          aws s3 cp "${{ github.event.inputs.gguf_file_path }}" \
+            s3://${{ env.S3_BUCKET }}/${{ env.MODEL_KEY }} \
+            --metadata "model=tinyllama-1.1b-finetuned,date=$(date -u +%Y-%m-%d),team=cisc886-group25fltp"
+
+      - name: Verify S3 Upload
+        run: |
+          aws s3 ls s3://${{ env.S3_BUCKET }}/${{ env.MODEL_KEY }}
+          echo "Full S3 Path: s3://${{ env.S3_BUCKET }}/${{ env.MODEL_KEY }}"
+
+      - name: Set commit status
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.sha,
+              state: 'success',
+              target_url: 'https://s3.console.aws.amazon.com/s3/buckets/${{ env.S3_BUCKET }}',
+              description: 'Model uploaded to S3 (25fltp)',
+              context: 'model-upload-25fltp'
+            });
+
+      - name: Upload model to EMR bootstrap script
+        run: |
+          aws s3 cp "${{ github.event.inputs.gguf_file_path }}" \
+            s3://${{ env.S3_BUCKET }}/model/tinyllama-chat.Q4_K_M.gguf
+          echo "Model ready for EC2 deployment at: s3://${{ env.S3_BUCKET }}/model/tinyllama-chat.Q4_K_M.gguf"
