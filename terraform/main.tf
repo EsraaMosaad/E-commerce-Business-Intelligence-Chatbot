@@ -126,9 +126,36 @@ resource "aws_iam_instance_profile" "ec2_profile" {
   role = aws_iam_role.emr_ec2_role.name
 }
 
-# ── 5. OUTPUTS ─────────────────────────────────────────────────────────────
+# ── 5. EC2 INSTANCE (Chatbot Deployment) ──────────────────────────────────
+resource "aws_instance" "web_server" {
+  ami           = "ami-04b70fa74e45c3917" # Ubuntu 24.04 LTS in us-east-1
+  instance_type = "t3.xlarge"
+  subnet_id     = aws_subnet.public.id
+  vpc_security_group_ids = [aws_security_group.ec2_sg.id]
+  iam_instance_profile   = aws_iam_instance_profile.ec2_profile.name
+  key_name               = "25fltp-ecom-key"
+
+  # Pass variables to user_data.sh template
+  user_data = templatefile("${path.module}/user_data.sh", {
+    s3_bucket  = aws_s3_bucket.main.bucket,
+    model_path = "model/tinyllama-chat.Q4_K_M.gguf"
+  })
+
+  root_block_device {
+    volume_size = 100
+    volume_type = "gp3"
+  }
+
+  tags = {
+    Name    = "25fltp-Ecom-Chatbot-Server"
+    Project = "Amazon-BI-Chatbot"
+  }
+}
+
+# ── 6. OUTPUTS ─────────────────────────────────────────────────────────────
 output "vpc_id" { value = aws_vpc.main.id }
 output "subnet_id" { value = aws_subnet.public.id }
 output "emr_sg_id" { value = aws_security_group.emr_sg.id }
 output "ec2_sg_id" { value = aws_security_group.ec2_sg.id }
 output "s3_bucket" { value = aws_s3_bucket.main.bucket }
+output "ec2_public_ip" { value = aws_instance.web_server.public_ip }

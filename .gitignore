@@ -15,8 +15,6 @@ logs/
 hf_cache/
 raw_input/
 eda_figures/
-docs/
-
 # Terraform
 .terraform/
 *.tfstate

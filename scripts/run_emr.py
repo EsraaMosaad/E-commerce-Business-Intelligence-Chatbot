@@ -51,7 +51,7 @@ preprocess_step = {
     "ActionOnFailure": "CONTINUE",
     "Jar": "command-runner.jar",
     "Args": [
-        "spark-submit", "--deploy-mode", "cluster",
+        "spark-submit", "--deploy-mode", "client",
         "--conf", "spark.executor.memory=8G",
         "--conf", "spark.executor.cores=4",
         "--conf", "spark.driver.memory=8G",
@@ -60,7 +60,7 @@ preprocess_step = {
         "--output-path", f"s3://{BUCKET}/processed",
         "--s3-bucket", BUCKET,
         "--categories"] + CATEGORIES + [
-        "--max-per-category", "200000"
+        "--max-per-category", "50000"
     ]
 }
 
@@ -72,8 +72,9 @@ cmd = [
     "aws", "emr", "create-cluster",
     "--name", "25fltp-ULTIMATE-BIG-DATA-PIPELINE",
     "--release-label", "emr-7.1.0",
-    "--instance-type", "m5.xlarge",
+    "--instance-type", "m6i.xlarge",
     "--instance-count", "3",
+    "--ebs-root-volume-size", "100",
     "--applications", "Name=Spark", "Name=Hadoop",
     "--ec2-attributes", f"KeyName=25fltp-ecom-key,SubnetId={SUBNET_ID},InstanceProfile={EMR_PROFILE}",
     "--service-role", SERVICE_ROLE,
@@ -86,7 +87,7 @@ cmd = [
 res = subprocess.run(cmd, capture_output=True, text=True)
 if res.returncode == 0:
     cluster_info = json.loads(res.stdout)
-    print(f"✅ ULTIMATE Cluster Launching! Cluster ID: {cluster_info['ClusterId']}")
+    print(f"[SUCCESS] ULTIMATE Cluster Launching! Cluster ID: {cluster_info['ClusterId']}")
     print("EMR is now processing 9 categories.")
 else:
-    print("❌ EMR Error:", res.stderr)
+    print("[ERROR] EMR Error:", res.stderr)

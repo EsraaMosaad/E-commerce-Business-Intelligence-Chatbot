@@ -149,6 +149,32 @@ The preprocessing pipeline (\texttt{spark/spark\_preprocess.py}) performs:
     \item Save processed data to S3 as JSONL
 \end{enumerate}
 
+\subsection{Exploratory Data Analysis (EDA)}
+
+The PySpark pipeline processed 9 categories and extracted a total of \textbf{360,277} highly structured training pairs, alongside \textbf{44,874} validation samples and \textbf{44,849} test samples, yielding a total corpus of \textbf{450,000} documents optimized for fine-tuning.
+
+\textbf{Category Distribution (Training):}
+\begin{itemize}
+    \item Books: 40,116
+    \item Pet Supplies: 40,177
+    \item Home \& Kitchen: 40,052
+    \item Clothing, Shoes \& Jewelry: 40,077
+    \item Beauty \& Personal Care: 40,008
+    \item Toys \& Games: 39,997
+    \item Sports \& Outdoors: 39,981
+    \item Grocery \& Gourmet Food: 39,966
+    \item Electronics: 39,903
+\end{itemize}
+
+\textbf{Sentiment Class Balance (Training):}
+\begin{itemize}
+    \item Positive: 294,776
+    \item Negative: 38,252
+    \item Neutral: 27,249
+\end{itemize}
+
+\textbf{Token Lengths:}
+The generated executive summaries feature extensive detail. The training set has an average character length of \textbf{285.91} (Max: 31,709 characters). The validation and test sets feature similar depths with averages of \textbf{284.65} and \textbf{286.99} respectively, ensuring the fine-tuned model learns to generate in-depth, multi-paragraph strategic reports rather than static, short sentences.
 \subsection{EMR Cluster Configuration}
 
 \begin{verbatim}

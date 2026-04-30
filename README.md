@@ -36,60 +36,7 @@ Electronics, Clothing_Shoes_and_Jewelry, Home_and_Kitchen, Books, Sports_and_Out
 
 ## System Architecture
 
-```
-                                    ┌──────────────────────────────────┐
-                                    │     Amazon Reviews 2023          │
-                                    │     (HuggingFace - 9 categories)│
-                                    └──────────────┬───────────────────┘
-                                                   │
-                           ┌───────────────────────▼───────────────────┐
-                           │         AWS EMR (PySpark)                  │
-                           │         Data Preprocessing                  │
-                           │         emr-7.1.0 (Spark + JupyterHub)     │
-                           └───────────────────────┬───────────────────┘
-                                                   │
-              ┌────────────────────────────────────▼────────────────────┐
-              │                    S3 Bucket                             │
-              │              s3://25fltp-ecom-chatbot/                   │
-              │  ├── model/tinyllama-chat.Q4_K_M.gguf                  │
-              │  ├── processed/ (train/val/test)                       │
-              │  └── scripts/emr-bootstrap.sh                          │
-              └────────────────────────────────────┬────────────────────┘
-                                                   │
-                          ┌────────────────────────▼───────────────────┐
-                          │         Google Colab (QLoRA Fine-tune)     │
-                          │         Model Fine-tuning                   │
-                          │         7,256 instruction examples          │
-                          │         Unsloth + TRL SFTTrainer            │
-                          │         Loss: 2.36 → 0.55                  │
-                          └────────────────────────┬───────────────────┘
-                                                   │
-                          ┌────────────────────────▼───────────────────┐
-                          │         Export to GGUF (llama.cpp)          │
-                          │         Q4_K_M Quantization                │
-                          │         ~668 MB                            │
-                          └────────────────────────┬───────────────────┘
-                                                   │
-                          ┌────────────────────────▼───────────────────┐
-                          │         Upload to S3 (GGUF)                 │
-                          │         Manual S3 CLI Upload                │
-                          └────────────────────────┬───────────────────┘
-                                                   │
-              ┌────────────────────────────────────▼────────────────────┐
-              │                    AWS EC2 (t3.large)                   │
-              │              Deployment                       │
-              │    ┌─────────────────────────────────────────┐         │
-              │    │           OpenWebUI (:3000)              │         │
-              │    │           Ollama (:11434)                │         │
-              │    │           FAISS RAG (all-MiniLM-L6-v2)   │         │
-              │    └─────────────────────────────────────────┘         │
-              └────────────────────────────────────────────────────────┘
-
-              ┌────────────────────────────────────────────────────────┐
-              │                    Terraform IaC                       │
-              │         VPC + Subnet + EMR + EC2 + S3 + IAM            │
-              └────────────────────────────────────────────────────────┘
-```
+![Architecture Diagram](docs/architecture_diagram.jpeg)
 
 ---
 
@@ -164,6 +111,12 @@ aws emr add-steps --cluster-id j-<CLUSTER_ID> \
 
 **Output:** `s3://25fltp-ecom-chatbot/processed/` (train.jsonl, val.jsonl, test.jsonl)
 
+**EDA Statistics (Across 9 Categories):**
+- **Train:** 360,277 samples (Avg Length: 285.9 chars)
+- **Val:** 44,874 samples (Avg Length: 284.6 chars)
+- **Test:** 44,849 samples (Avg Length: 286.9 chars)
+- **Total Dataset:** 450,000 processed reviews.
+- **Top Detected Topic:** Quality
 ---
 
 ### Model Fine-Tuning (QLoRA → GGUF)
@@ -284,7 +237,7 @@ terraform output  # Shows:
 | Model | TinyLlama/TinyLlama-1.1B-Chat-v1.0 |
 | Parameters | 1.1 billion |
 | Fine-Tuning Method | QLoRA (4-bit NF4 + LoRA r=16, alpha=32) |
-| Training Data | 9 categories × 10,000 samples = 90,000 raw (filtered to ~65,000) |
+| Training Data | 450,000 processed samples across 9 categories |
 | Epochs | 2 |
 | Batch Size | 4 (effective 16 with gradient accumulation) |
 | Context Length | 2048 tokens |
