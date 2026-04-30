@@ -4,7 +4,7 @@
 - **Course**: CISC 886 — Cloud Computing
 - **Group**: 25fltp
 - **Project**: E-commerce Business Intelligence Chatbot
-- **Architecture**: AWS (VPC + EMR + EC2 + S3) + Terraform + GitHub Actions
+- **Architecture**: AWS (VPC + EMR + EC2 + S3) + Terraform
 - **Fine-tuned Model**: TinyLlama-1.1B (QLoRA → GGUF → Ollama)
 
 ---
@@ -20,7 +20,7 @@
 
 ### Steps to Execute
 1. Copy `spark/spark_preprocess.py` to EMR master node
-2. Or trigger via GitHub Actions → Terraform Apply → EMR cluster
+2. Trigger via Terraform Apply → EMR cluster
 3. Run: `spark-submit --master yarn --deploy-mode cluster spark_preprocess.py`
 4. Outputs saved to: `s3://25fltp-ecom-chatbot/processed/`
 
@@ -104,37 +104,6 @@ ssh -i 25fltp-ecom-key.pem ubuntu@<ec2_public_ip>
 
 ---
 
-## Infrastructure — Terraform & GitHub Actions
-
-### Files Required
-- [ ] `.github/workflows/terraform.yml` — CI/CD pipeline
-- [ ] `.github/workflows/upload_model.yml` — Model upload workflow
-- [ ] `terraform/main.tf` — Complete infrastructure
-- [ ] `terraform/variables.tf` — All variables
-- [ ] `terraform/terraform.tfvars.example` — Template
-
-### GitHub Actions Setup
-1. Go to: GitHub Repo → Settings → Secrets and Variables → Actions
-2. Add secrets:
-   - `AWS_ROLE_ARN` — AWS IAM role ARN for OIDC
-   - `MY_IP` — Your IP address for SSH/HTTP access
-
-### OIDC Provider Setup (AWS IAM)
-1. Create OIDC identity provider in AWS IAM
-2. Create role with trust policy for GitHub
-3. Add permissions: EC2, EMR, S3, IAM, VPC
-4. Use role ARN as `AWS_ROLE_ARN` secret
-
-### Workflow Triggers
-| Workflow | Trigger | Action |
-|----------|---------|--------|
-| `terraform.yml` | Push to main | Validate + Apply infrastructure |
-| `terraform.yml` | PR | Validate + Plan (comment on PR) |
-| `terraform.yml` | Branch delete | Destroy resources |
-| `upload_model.yml` | Manual dispatch | Upload GGUF to S3 |
-
----
-
 ## Documentation Files
 
 ### Files Required
@@ -145,7 +114,7 @@ ssh -i 25fltp-ecom-key.pem ubuntu@<ec2_public_ip>
 ### README Sections to Verify
 - [ ] Project title: "E-commerce BI Chatbot (Group 25fltp)"
 - [ ] File structure includes: `terraform/`, `.github/workflows/`, `training/`, `docs/`
-- [ ] Architecture diagram shows: Data → Fine-tuning → Deployment → IaC/CI/CD
+- [ ] Architecture diagram shows: Data → Fine-tuning → Deployment → IaC
 - [ ] Team members listed with roles (Data, Fine-tuning, Deployment)
 
 ---
@@ -173,10 +142,6 @@ ecom-chatbot-25fltp/
 │   ├── deploy_commands.md                # SSH + Modelfile commands
 │   ├── backend_rag.py                    # RAG layer (FAISS)
 │   └── model_load_instructions.md        # GGUF loading guide
-├── .github/
-│   └── workflows/
-│       ├── terraform.yml                 # CI/CD pipeline
-│       └── upload_model.yml             # Model upload workflow
 └── docs/
     ├── complete_guide.md                # Full workflow guide
     ├── file_guide.md                     # File explanation
@@ -240,7 +205,6 @@ SSH:       ssh -i 25fltp-ecom-key.pem ubuntu@<ec2_public_ip>
 ### Code Files
 - [ ] All Python files present and documented
 - [ ] All Terraform files present with proper variable definitions
-- [ ] All GitHub Actions workflows present
 - [ ] All notebooks runnable (BLOCK 1-15 complete)
 
 ### Documentation
@@ -251,7 +215,6 @@ SSH:       ssh -i 25fltp-ecom-key.pem ubuntu@<ec2_public_ip>
 
 ### Infrastructure
 - [ ] Terraform validates: `terraform validate`
-- [ ] GitHub Actions passes on PR
 - [ ] All 3 persons' work integrated
 
 ### Model

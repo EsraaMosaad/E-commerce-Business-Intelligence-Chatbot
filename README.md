@@ -72,7 +72,7 @@ Electronics, Clothing_Shoes_and_Jewelry, Home_and_Kitchen, Books, Sports_and_Out
                                                    │
                           ┌────────────────────────▼───────────────────┐
                           │         Upload to S3 (GGUF)                 │
-                          │         GitHub Actions Upload              │
+                          │         Manual S3 CLI Upload                │
                           └────────────────────────┬───────────────────┘
                                                    │
               ┌────────────────────────────────────▼────────────────────┐
@@ -87,7 +87,6 @@ Electronics, Clothing_Shoes_and_Jewelry, Home_and_Kitchen, Books, Sports_and_Out
 
               ┌────────────────────────────────────────────────────────┐
               │                    Terraform IaC                       │
-              │              GitHub Actions CI/CD                      │
               │         VPC + Subnet + EMR + EC2 + S3 + IAM            │
               └────────────────────────────────────────────────────────┘
 ```
@@ -117,10 +116,6 @@ Electronics, Clothing_Shoes_and_Jewelry, Home_and_Kitchen, Books, Sports_and_Out
 │   ├── deploy_commands.md           # SSH + Modelfile commands (Person 3)
 │   ├── backend_rag.py               # RAG layer with FAISS (Person 2)
 │   └── model_load_instructions.md   # GGUF loading guide (Person 2)
-├── .github/
-│   └── workflows/
-│       ├── terraform.yml            # CI/CD: validate → plan → apply → destroy
-│       └── upload_model.yml         # Upload GGUF to S3 (manual dispatch)
 └── docs/
     ├── submission_checklist.md      # Professor submission checklist
     └── architecture_diagram.svg     # Visual architecture diagram
@@ -279,22 +274,6 @@ terraform output  # Shows:
 ```
 
 ---
-
-## GitHub Actions CI/CD
-
-### Workflows
-| Workflow | Trigger | Action |
-|----------|---------|--------|
-| `terraform.yml` | Push to main | Validate + Apply infrastructure |
-| `terraform.yml` | PR | Validate + Plan (comment on PR) |
-| `terraform.yml` | Branch delete | Destroy resources |
-| `upload_model.yml` | Manual dispatch | Upload GGUF to S3 |
-
-### Setup Required
-1. **AWS OIDC Provider** — Create in AWS IAM
-2. **GitHub Secrets:**
-   - `AWS_ROLE_ARN` — IAM role ARN for OIDC
-   - `MY_IP` — Your IP for SSH/HTTP access
 
 ---
 
