@@ -2,7 +2,7 @@
 
 **Course:** CISC 886 – Cloud Computing | Queen's University
 
-**Team:** Person 1 (Data Engineering), **Person 2 (Model Fine-Tuning)**, Person 3 (Deployment)
+**Team members:** Data Engineering, Model Fine-Tuning, Deployment
 
 **Group ID:** 25fltp
 
@@ -30,7 +30,7 @@ The chatbot answers three core categories of business queries (and more):
 
 ### Categories Covered (9/9)
 
-Electronics, Clothing_Shoes_and_Jewelry, Home_and_Kitchen, Books, Sports_and_Outdoors, Beauty_and_Personal_Care, Toys_and_Games, Food_and_Beverages, Pet_Supplies
+Electronics, Clothing_Shoes_and_Jewelry, Home_and_Kitchen, Books, Sports_and_Outdoors, Beauty_and_Personal_Care, Toys_and_Games, Grocery_and_Gourmet_Food, Pet_Supplies
 
 ---
 
@@ -44,7 +44,7 @@ Electronics, Clothing_Shoes_and_Jewelry, Home_and_Kitchen, Books, Sports_and_Out
                                                    │
                            ┌───────────────────────▼───────────────────┐
                            │         AWS EMR (PySpark)                  │
-                           │         Person 1: Data Preprocessing        │
+                           │         Data Preprocessing                  │
                            │         emr-7.1.0 (Spark + JupyterHub)     │
                            └───────────────────────┬───────────────────┘
                                                    │
@@ -52,13 +52,13 @@ Electronics, Clothing_Shoes_and_Jewelry, Home_and_Kitchen, Books, Sports_and_Out
               │                    S3 Bucket                             │
               │              s3://25fltp-ecom-chatbot/                   │
               │  ├── model/tinyllama-chat.Q4_K_M.gguf                  │
-              │  ├── data/processed/ (train/val/test)                  │
-              │  └── scripts/emr_bootstrap.sh                          │
+              │  ├── processed/ (train/val/test)                       │
+              │  └── scripts/emr-bootstrap.sh                          │
               └────────────────────────────────────┬────────────────────┘
                                                    │
                           ┌────────────────────────▼───────────────────┐
                           │         Google Colab (QLoRA Fine-tune)     │
-                          │         Person 2: Model Fine-tuning         │
+                          │         Model Fine-tuning                   │
                           │         7,256 instruction examples          │
                           │         Unsloth + TRL SFTTrainer            │
                           │         Loss: 2.36 → 0.55                  │
@@ -77,7 +77,7 @@ Electronics, Clothing_Shoes_and_Jewelry, Home_and_Kitchen, Books, Sports_and_Out
                                                    │
               ┌────────────────────────────────────▼────────────────────┐
               │                    AWS EC2 (t3.large)                   │
-              │              Person 3: Deployment                       │
+              │              Deployment                       │
               │    ┌─────────────────────────────────────────┐         │
               │    │           OpenWebUI (:3000)              │         │
               │    │           Ollama (:11434)                │         │
@@ -122,8 +122,6 @@ Electronics, Clothing_Shoes_and_Jewelry, Home_and_Kitchen, Books, Sports_and_Out
 │       ├── terraform.yml            # CI/CD: validate → plan → apply → destroy
 │       └── upload_model.yml         # Upload GGUF to S3 (manual dispatch)
 └── docs/
-    ├── complete_guide.md            # Full workflow guide
-    ├── file_guide.md                # File-by-file explanation
     ├── submission_checklist.md      # Professor submission checklist
     └── architecture_diagram.svg     # Visual architecture diagram
 ```
@@ -144,7 +142,7 @@ Electronics, Clothing_Shoes_and_Jewelry, Home_and_Kitchen, Books, Sports_and_Out
 
 ## Step-by-Step Workflow
 
-### Person 1 — Data Preprocessing (PySpark on EMR)
+### Data Preprocessing (PySpark on EMR)
 
 **Purpose:** Process raw Amazon reviews data into structured train/val/test sets.
 
@@ -159,21 +157,21 @@ Electronics, Clothing_Shoes_and_Jewelry, Home_and_Kitchen, Books, Sports_and_Out
 aws emr create-cluster \
   --name "25fltp-ecom-spark-cluster" \
   --release-label emr-7.1.0 \
-  --instance-type m5.xlarge \
+  --instance-type m6i.2xlarge \
   --instance-count 3 \
   --ec2-attributes KeyName=25fltp-ecom-key,SubnetId=<subnet-id> \
   --applications Name=Spark
 
 # Submit Spark job
 aws emr add-steps --cluster-id j-<CLUSTER_ID> \
-  --steps Type=Spark,Name=EcomPreprocess,Args=[--deploy-mode,cluster,s3://25fltp-ecom-chatbot/scripts/spark_preprocess.py]
+  --steps Type=Spark,Name=EcomPreprocess,Args=[--deploy-mode,cluster,s3://25fltp-ecom-chatbot/code/spark_preprocess.py]
 ```
 
-**Output:** `s3://25fltp-ecom-chatbot/data/processed/` (train.jsonl, val.jsonl, test.jsonl)
+**Output:** `s3://25fltp-ecom-chatbot/processed/` (train.jsonl, val.jsonl, test.jsonl)
 
 ---
 
-### Person 2 — Model Fine-Tuning (QLoRA → GGUF)
+### Model Fine-Tuning (QLoRA → GGUF)
 
 **Purpose:** Fine-tune TinyLlama-1.1B on e-commerce BI instruction data, export to GGUF.
 
@@ -220,7 +218,7 @@ aws s3 cp ./outputs/ecom_chatbot_gguf_gguf_gguf_gguf/tinyllama-chat.Q4_K_M.gguf 
 
 ---
 
-### Person 3 — Deployment (EC2 + Ollama + OpenWebUI)
+### Deployment (EC2 + Ollama + OpenWebUI)
 
 **Purpose:** Deploy GGUF model on EC2 with RAG-augmented web interface.
 
@@ -307,7 +305,7 @@ terraform output  # Shows:
 | Model | TinyLlama/TinyLlama-1.1B-Chat-v1.0 |
 | Parameters | 1.1 billion |
 | Fine-Tuning Method | QLoRA (4-bit NF4 + LoRA r=16, alpha=32) |
-| Training Data | 9 categories × ~7,000 examples = ~65,000 instruction pairs |
+| Training Data | 9 categories × 10,000 samples = 90,000 raw (filtered to ~65,000) |
 | Epochs | 2 |
 | Batch Size | 4 (effective 16 with gradient accumulation) |
 | Context Length | 2048 tokens |
@@ -322,7 +320,7 @@ terraform output  # Shows:
 | Service | Usage | Est. Cost |
 |---------|-------|-----------|
 | Amazon S3 | ~10 GB storage | ~$1.50/month |
-| Amazon EMR | 1 cluster × ~2 hours (m5.xlarge × 3) | ~$6.00 |
+| Amazon EMR | 1 cluster × ~2 hours (m6i.2xlarge × 3) | ~$10.00 |
 | Amazon EC2 | t3.large × ~48 hours | ~$15.00 |
 | Data Transfer | ~5 GB outbound | ~$0.50 |
 | **Total** | | **~$23.00** |
@@ -361,15 +359,8 @@ aws ec2 describe-iam-instance-profile-associations --instance-id <id>
 
 ---
 
-## Team Responsibilities
-
-| Person | Role | Responsibility |
-|--------|------|----------------|
-| Person 1 | Data Engineering | EMR preprocessing, PySpark pipeline, S3 pipeline |
-| **Person 2** | **Model Fine-Tuning** | **Colab notebook, QLoRA, GGUF export, RAG backend** |
-| Person 3 | Deployment | VPC, EC2, Ollama, OpenWebUI, Terraform, CI/CD |
-
 ---
+
 
 ## References
 

@@ -9,7 +9,7 @@
 
 ---
 
-## Person 1 — Data Preprocessing (PySpark)
+## Data Preprocessing (PySpark)
 
 ### Files Required
 - [ ] `spark/spark_preprocess.py` — PySpark ETL pipeline for Amazon reviews
@@ -22,16 +22,16 @@
 1. Copy `spark/spark_preprocess.py` to EMR master node
 2. Or trigger via GitHub Actions → Terraform Apply → EMR cluster
 3. Run: `spark-submit --master yarn --deploy-mode cluster spark_preprocess.py`
-4. Outputs saved to: `s3://25fltp-ecom-chatbot/data/processed/`
+4. Outputs saved to: `s3://25fltp-ecom-chatbot/processed/`
 
 ### Verification
 - [ ] EMR cluster created: `25fltp-ecom-spark-cluster`
 - [ ] PySpark job completes successfully
-- [ ] Processed data in S3: `s3://25fltp-ecom-chatbot/data/`
+- [ ] Processed data in S3: `s3://25fltp-ecom-chatbot/processed/`
 
 ---
 
-## Person 2 — Model Fine-Tuning (QLoRA → GGUF)
+## Model Fine-Tuning (QLoRA → GGUF)
 
 ### Files Required
 - [ ] `training/finetune_all_categories.ipynb` — Unified notebook for all 9 categories
@@ -62,12 +62,12 @@
 | Sports_and_Outdoors | SWOT, Competitor | Sports gear, outdoor equipment |
 | Beauty_and_Personal_Care | Customer Sentiment, Pricing | Beauty products, skincare |
 | Toys_and_Games | Market Trends, Product Category | Toy trends, game analysis |
-| Food_and_Beverages | Review Intelligence, SWOT | Food products, beverage market |
+| Grocery_and_Gourmet_Food | Review Intelligence, SWOT | Food products, beverage market |
 | Pet_Supplies | Competitor, Sentiment | Pet products, pet market |
 
 ---
 
-## Person 3 — Deployment (EC2 + Ollama + OpenWebUI)
+## System Deployment (EC2 + Ollama + OpenWebUI)
 
 ### Files Required
 - [ ] `terraform/main.tf` (EC2 section) — Complete infrastructure
@@ -139,8 +139,6 @@ ssh -i 25fltp-ecom-key.pem ubuntu@<ec2_public_ip>
 
 ### Files Required
 - [ ] `README.md` — Project overview and file structure
-- [ ] `docs/complete_guide.md` — Full workflow guide
-- [ ] `docs/file_guide.md` — File-by-file explanation
 - [ ] `docs/submission_checklist.md` — This file
 - [ ] `docs/architecture_diagram.svg` — Visual architecture
 
@@ -148,7 +146,7 @@ ssh -i 25fltp-ecom-key.pem ubuntu@<ec2_public_ip>
 - [ ] Project title: "E-commerce BI Chatbot (Group 25fltp)"
 - [ ] File structure includes: `terraform/`, `.github/workflows/`, `training/`, `docs/`
 - [ ] Architecture diagram shows: Data → Fine-tuning → Deployment → IaC/CI/CD
-- [ ] Team members listed: Person 1 (Data), Person 2 (Fine-tuning), Person 3 (Deployment)
+- [ ] Team members listed with roles (Data, Fine-tuning, Deployment)
 
 ---
 
@@ -275,8 +273,8 @@ SSH:       ssh -i 25fltp-ecom-key.pem ubuntu@<ec2_public_ip>
 - **Error**: "Model not responding" → Run `ollama list` on EC2, check OpenWebUI logs
 
 ### EMR Issues
-- **Error**: "Instance type not available" → Use m5.xlarge instead
-- **Error**: "Bootstrap action failed" → Check S3 path: `s3://25fltp-ecom-chatbot/scripts/emr_bootstrap.sh`
+- **Error**: "Instance type not available" → Use m6i.xlarge instead
+- **Error**: "Bootstrap action failed" → Check S3 path: `s3://25fltp-ecom-chatbot/scripts/emr-bootstrap.sh`
 
 ---
 

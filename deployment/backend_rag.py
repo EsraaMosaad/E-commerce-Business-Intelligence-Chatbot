@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
-backend_rag.py — E-commerce Business Intelligence Chatbot RAG Backend
-Person 2 & Person 3 Collaboration
+backend_rag.py — E-commerce BI Chatbot RAG Backend
 
 This script implements a lightweight RAG (Retrieval-Augmented Generation) layer
 that augments chatbot responses with curated business knowledge for SWOT and
@@ -15,8 +14,7 @@ How it works:
 5. Augments the prompt with retrieved context before sending to Ollama
 
 Usage:
-    python backend_rag.py
-    # Then visit http://localhost:3000 (OpenWebUI) or call the API directly
+    python backend_rag.py --cli
 
 Required packages:
     pip install faiss-cpu sentence-transformers requests
@@ -28,9 +26,7 @@ import json
 import requests
 import numpy as np
 
-# ──────────────────────────────────────────────
-# RAG Dependencies (install if missing)
-# ──────────────────────────────────────────────
+# RAG Dependencies
 try:
     import faiss
     from sentence_transformers import SentenceTransformer
@@ -40,9 +36,7 @@ except ImportError:
     import faiss
     from sentence_transformers import SentenceTransformer
 
-# ──────────────────────────────────────────────
 # Configuration
-# ──────────────────────────────────────────────
 KNOWLEDGE_DIR = os.path.join(os.path.dirname(__file__), "knowledge")
 OLLAMA_BASE_URL = "http://localhost:11434"
 MODEL_NAME = "ecom-chatbot"
@@ -62,9 +56,7 @@ BUSINESS_KEYWORDS = [
     "prime", "marketplace", "fulfillment",
 ]
 
-# ──────────────────────────────────────────────
 # RAG Knowledge Base
-# ──────────────────────────────────────────────
 
 def load_knowledge_files():
     """
@@ -311,16 +303,6 @@ if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "--cli":
         run_cli()
     else:
-        print("""
-╔══════════════════════════════════════════════════════════════╗
-║  E-commerce BI Chatbot — RAG Backend                        ║
-║  Usage: python backend_rag.py --cli                          ║
-║         (Starts interactive CLI chat with RAG enabled)       ║
-║                                                              ║
-║  Prerequisites:                                              ║
-║    1. Ollama running:  ollama serve                         ║
-║    2. Model loaded:     ollama run ecom-chatbot             ║
-║    3. Dependencies:      pip install faiss-cpu sentence-     ║
-║                         transformers requests                ║
-╚══════════════════════════════════════════════════════════════╝
-        """)
+        print("E-commerce BI Chatbot — RAG Backend")
+        print("Usage: python backend_rag.py --cli")
+        print("Required: Ollama running with 'ecom-chatbot' model")

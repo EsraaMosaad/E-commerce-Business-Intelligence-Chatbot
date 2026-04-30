@@ -22,7 +22,7 @@ variable "instance_type" {
 variable "ami_id" {
   description = "Ubuntu 22.04 AMI ID (update with your region-specific AMI)"
   type        = string
-  default     = "ami-05575bertyyy0ca6e" # us-east-1 default — replace with your actual AMI
+  default     = "ami-051e483428ae60e7d" # us-east-1 default — replace with your actual AMI
 }
 
 variable "vpc_cidr" {
@@ -68,13 +68,13 @@ variable "ollama_model_path" {
 variable "emr_master_instance_type" {
   description = "EMR master node instance type"
   type        = string
-  default     = "m5.xlarge" # 4 vCPU, 16 GB RAM — sufficient for Spark driver
+  default     = "m6i.2xlarge" # 8 vCPU, 32 GB RAM — sufficient for Spark driver
 }
 
 variable "emr_core_instance_type" {
   description = "EMR core/task node instance type"
   type        = string
-  default     = "m5.xlarge" # 4 vCPU, 16 GB RAM — good for Spark executors
+  default     = "m6i.2xlarge" # 8 vCPU, 32 GB RAM — good for Spark executors
 }
 
 variable "emr_core_instance_count" {

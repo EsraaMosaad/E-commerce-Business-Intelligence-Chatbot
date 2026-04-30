@@ -20,9 +20,9 @@
 \large Cloud Computing Project — CISC 886\\
 Group 25fltp}
 \author{
-    \textbf{Person 1 (Data Engineering)} — EMR Preprocessing\\
-    \textbf{Person 2 (Model Fine-Tuning)} — QLoRA Fine-tuning\\
-    \textbf{Person 3 (Deployment)} — EC2 + OpenWebUI
+    \textbf{Data Engineering} — EMR Preprocessing\\
+    \textbf{Model Fine-Tuning} — QLoRA Fine-tuning\\
+    \textbf{System Deployment} — EC2 + OpenWebUI
 }
 \date{\today}
 
@@ -55,13 +55,13 @@ The chatbot is designed to answer three categories of business queries:
 \begin{table}[h!]
 \centering
 \caption{Team Responsibilities}
-\begin{tabular}{llp{6cm}}
+\begin{tabular}{lp{8cm}}
 \toprule
-Person & Role & Responsibilities \\
+Role & Responsibilities \\
 \midrule
-Person 1 & Data Engineering & EMR preprocessing, PySpark pipeline, S3 pipeline, data quality \\
-Person 2 & Model Fine-tuning & Colab notebook, QLoRA fine-tuning, GGUF export, RAG backend \\
-Person 3 & Deployment & VPC, EC2, Ollama, OpenWebUI, Terraform, CI/CD \\
+Data Engineering & EMR preprocessing, PySpark pipeline, S3 pipeline, data quality \\
+Model Fine-tuning & Colab notebook, QLoRA fine-tuning, GGUF export, RAG backend \\
+System Deployment & VPC, EC2, Ollama, OpenWebUI, Terraform, CI/CD \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -74,14 +74,14 @@ Figure~\ref{fig:architecture} illustrates the end-to-end system architecture.
 \begin{figure}[htbp]
 \centering
 \fbox{\parbox{0.9\linewidth}{
-\textbf{Data Layer (Person 1)}\\
+\textbf{Data Layer}\\
 $\downarrow$ Amazon Reviews 2023 (HuggingFace, 9 categories)\\[0.5em]
 \textbf{Processing Layer}\\$\downarrow$ AWS EMR (PySpark) $\rightarrow$ S3 Bucket\\
-\textbf{Training Layer (Person 2)}\\
+\textbf{Training Layer}\\
 $\uparrow$ S3 processed data\\
 $\downarrow$ Google Colab (QLoRA Fine-tuning)\\
 \textbf{Export Layer}\\$\downarrow$ GGUF Format (Q4\_K\_M, $\sim$668 MB)\\
-\textbf{Deployment Layer (Person 3)}\\
+\textbf{Deployment Layer}\\
 $\uparrow$ S3 GGUF upload\\
 $\downarrow$ AWS EC2 (Ollama + OpenWebUI + FAISS RAG)\\[0.5em]
 \textbf{Infrastructure as Code}\\
@@ -115,7 +115,7 @@ Dataset & McAuley-Lab/Amazon-Reviews-2023 (HuggingFace) \\
 \end{tabular}
 \end{table}
 
-\section{Person 1: Data Preprocessing}
+\section{Data Preprocessing}
 \label{sec:person1}
 
 \textbf{Goal:} Process raw Amazon Reviews 2023 data into structured training sets.
@@ -132,7 +132,7 @@ The McAuley-Lab/Amazon-Reviews-2023 dataset contains millions of reviews across 
     \item Sports\_and\_Outdoors
     \item Beauty\_and\_Personal\_Care
     \item Toys\_and\_Games
-    \item Food\_and\_Beverages
+    \item Grocery\_and\_Gourmet\_Food
     \item Pet\_Supplies
 \end{itemize}
 
@@ -155,12 +155,12 @@ The preprocessing pipeline (\texttt{spark/spark\_preprocess.py}) performs:
 Cluster Name: 25fltp-ecom-spark-cluster
 Release: emr-7.1.0
 Applications: Spark, JupyterHub, Hadoop
-Master Instance: m5.xlarge (4 vCPU, 16 GB RAM)
-Core Instances: 2 × m5.xlarge
-Bootstrap: s3://25fltp-ecom-chatbot/scripts/emr_bootstrap.sh
+Master Instance: m6i.2xlarge (8 vCPU, 32 GB RAM)
+Core Instances: 2 × m6i.2xlarge
+Bootstrap: s3://25fltp-ecom-chatbot/scripts/emr-bootstrap.sh
 \end{verbatim}
 
-\section{Person 2: Model Fine-tuning}
+\section{Model Fine-tuning}
 \label{sec:person2}
 
 \textbf{Goal:} Fine-tune TinyLlama-1.1B on e-commerce BI instruction data and export to GGUF.
@@ -247,7 +247,7 @@ Quantization: Q4_K_M (4-bit K-Quant Medium)
 
 Note: Unsloth 2026.4.8 creates a \textbf{quadruple-nested} directory structure.
 
-\section{Person 3: Deployment}
+\section{System Deployment}
 \label{sec:person3}
 
 \textbf{Goal:} Deploy GGUF model on AWS EC2 with RAG-augmented web interface.
