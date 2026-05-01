@@ -55,17 +55,14 @@ Electronics, Clothing_Shoes_and_Jewelry, Home_and_Kitchen, Books, Sports_and_Out
 │   ├── terraform.tfvars.example      # Template for deployment
 │   └── user_data.sh                 # Cloud-init script for EC2 auto-provisioning
 ├── spark/
-│   ├── spark_preprocess.py          # PySpark ETL pipeline (Person 1)
-│   ├── run_commands.sh              # Manual EMR commands (Person 1)
+│   ├── spark_preprocess.py          # PySpark ETL pipeline
+│   ├── run_commands.sh              # Manual EMR commands
 │   └── scripts/
 │       └── emr_bootstrap.sh        # Bootstrap for EMR nodes
 ├── deployment/
-│   ├── deploy_commands.md           # SSH + Modelfile commands (Person 3)
-│   ├── backend_rag.py               # RAG layer with FAISS (Person 2)
-│   └── model_load_instructions.md   # GGUF loading guide (Person 2)
-└── docs/
-    ├── submission_checklist.md      # Professor submission checklist
-    └── architecture_diagram.svg     # Visual architecture diagram
+│   ├── deploy_commands.md           # SSH + Modelfile commands
+│   ├── backend_rag.py               # RAG layer with FAISS
+│   └── model_load_instructions.md   # GGUF loading guide
 ```
 
 ---
