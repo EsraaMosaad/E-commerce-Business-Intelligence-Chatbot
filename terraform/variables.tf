@@ -16,13 +16,13 @@ variable "environment" {
 variable "instance_type" {
   description = "EC2 instance type for the chatbot"
   type        = string
-  default     = "t3.large" # 2 vCPU, 8 GB RAM — sufficient for TinyLlama-1.1B GGUF
+  default     = "t3.xlarge" # 4 vCPU, 16 GB RAM — upgraded for reliable inference
 }
 
 variable "ami_id" {
-  description = "Ubuntu 22.04 AMI ID (update with your region-specific AMI)"
+  description = "Ubuntu 24.04 LTS AMI ID (update with your region-specific AMI)"
   type        = string
-  default     = "ami-051e483428ae60e7d" # us-east-1 default — replace with your actual AMI
+  default     = "ami-04b70fa74e45c3917" # us-east-1 default — replace with your actual AMI
 }
 
 variable "vpc_cidr" {

@@ -128,8 +128,8 @@ resource "aws_iam_instance_profile" "ec2_profile" {
 
 # ── 5. EC2 INSTANCE (Chatbot Deployment) ──────────────────────────────────
 resource "aws_instance" "web_server" {
-  ami           = "ami-04b70fa74e45c3917" # Ubuntu 24.04 LTS in us-east-1
-  instance_type = "t3.xlarge"
+  ami           = var.ami_id
+  instance_type = var.instance_type
   subnet_id     = aws_subnet.public.id
   vpc_security_group_ids = [aws_security_group.ec2_sg.id]
   iam_instance_profile   = aws_iam_instance_profile.ec2_profile.name

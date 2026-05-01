@@ -133,24 +133,18 @@ aws emr add-steps --cluster-id j-<CLUSTER_ID> \
 2. Runtime → Change runtime → **T4 GPU**
 3. Run BLOCK 1-15 sequentially
 
-**BLOCK Overview:**
-| Block | Purpose |
+**Steps Overview:**
+| Step | Purpose |
 |-------|---------|
-| 1 | Install dependencies (Unsloth, transformers, trl, peft) |
-| 2 | GPU detection |
-| 3 | Load 9 categories × 10,000 samples (90,000 raw) |
-| 4 | Create instruction pairs (7 task types) |
-| 5 | Filter to ~65,000 clean examples |
-| 6 | Load TinyLlama-1.1B with 4-bit NF4 quantization |
-| 7 | Attach LoRA adapters (r=16, alpha=32, dropout=0.05) |
-| 8 | Configure SFTTrainer (gradient accumulation=4, batch=4) |
-| 9 | Fine-tune (2 epochs, ~33 minutes) |
-| 10 | Evaluation on 5 test prompts |
-| 11 | Push to hub (optional) |
-| 12 | Merge LoRA adapters into base model |
-| 13 | **Export to GGUF** (Quadruple-nested path!) |
-| 14 | Upload GGUF to S3 |
-| 15 | Final inference test |
+| 1 | Install Dependencies (Unsloth, transformers, trl, peft, awscli) |
+| 2 | S3 Login & Download Data (Total 360,277 training samples downloaded) |
+| 3 | Load Model & Base Test (unsloth/tinyllama-chat-bnb-4bit) |
+| 4 | Apply LoRA Adapters (r=16, alpha=16, dropout=0) |
+| 5 | Dataset & Formatting (Subset to 70,000 samples: 63k train / 7k eval) |
+| 6 | Hyperparameter Table (LR=2e-4, batch=2, grad_accum=4, steps=500) |
+| 7 | Train Model (Early stopped at ~291 steps due to convergence) |
+| 8 | Training Summary (Calculated 83.72% loss improvement and plotted curves) |
+| 9 | Final Inference Test (SWOT, Risk Assessment, Market Forecast) |
 
 **GGUF Output Path:**
 ```
@@ -234,16 +228,17 @@ terraform output  # Shows:
 
 | Property | Value |
 |----------|-------|
-| Model | TinyLlama/TinyLlama-1.1B-Chat-v1.0 |
+| Model | unsloth/tinyllama-chat-bnb-4bit |
 | Parameters | 1.1 billion |
-| Fine-Tuning Method | QLoRA (4-bit NF4 + LoRA r=16, alpha=32) |
-| Training Data | 450,000 processed samples across 9 categories |
-| Epochs | 2 |
-| Batch Size | 4 (effective 16 with gradient accumulation) |
+| Fine-Tuning Method | QLoRA (4-bit + LoRA r=16, alpha=16, dropout=0) |
+| Training Data | 70,000 samples (63k train, 7k val) across 9 categories |
+| Epochs | 1 |
+| Max Steps | 500 (Early stopped at ~291) |
+| Batch Size | 2 (effective 8 with gradient accumulation=4) |
+| Learning Rate | 2e-4 |
 | Context Length | 2048 tokens |
 | GGUF Quantization | Q4_K_M (~668 MB) |
-| Training Time | ~33 minutes |
-| Final Loss | 0.55 |
+| Final Loss | 0.4038 (Train), 0.3906 (Validation) |
 
 ---
 
@@ -253,7 +248,7 @@ terraform output  # Shows:
 |---------|-------|-----------|
 | Amazon S3 | ~10 GB storage | ~$1.50/month |
 | Amazon EMR | 1 cluster × ~2 hours (m6i.2xlarge × 3) | ~$10.00 |
-| Amazon EC2 | t3.large × ~48 hours | ~$15.00 |
+| Amazon EC2 | t3.xlarge × ~48 hours | ~$15.00 |
 | Data Transfer | ~5 GB outbound | ~$0.50 |
 | **Total** | | **~$23.00** |
 

@@ -119,3 +119,17 @@ ssh -i 25fltp-ecom-key.pem ubuntu@<ec2_public_ip>
 # Check if model is loaded:
 ollama list
 ```
+
+### 3. API Validation (CLI)
+To verify the fine-tuned executive persona is active via the API:
+```bash
+curl http://localhost:11434/api/generate -d '{
+  "model": "ecom-chatbot",
+  "prompt": "Perform a SWOT analysis for a new organic coffee brand entering the Amazon US market.",
+  "stream": false
+}'
+```
+*Expected output: A JSON response containing a structured SWOT analysis with the "Amazon Internal Executive BI Assistant" persona.*
+
+---
+
