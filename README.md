@@ -36,7 +36,7 @@ Electronics, Clothing_Shoes_and_Jewelry, Home_and_Kitchen, Books, Sports_and_Out
 
 ## System Architecture
 
-![Architecture Diagram](docs/architecture_diagram.gif)
+![Architecture Diagram](img\architecture_diagram.gif)
 
 ---
 
