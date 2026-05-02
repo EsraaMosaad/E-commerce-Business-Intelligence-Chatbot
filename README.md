@@ -11,7 +11,7 @@ This repository contains the full replication workflow for an AWS-based chatbot 
 
 ## System Architecture
 
-![Architecture Diagram](img\architecture_diagram.gif)
+![Architecture Diagram](img/architecture_diagram.gif)
 
 ---
 
