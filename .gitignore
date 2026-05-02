@@ -6,7 +6,6 @@ __pycache__/
 *.py[cod]
 *$py.class
 venv/
-.env
 
 # Logs and Temp
 logs/
@@ -20,3 +19,5 @@ docs/
 *.tfstate
 *.tfstate.backup
 .terraform.lock.hcl
+config.bat
+node_modules
