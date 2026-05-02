@@ -1,297 +1,359 @@
-# E-commerce Business Intelligence Chatbot — Group 25fltp
+# E-commerce Business Intelligence Chatbot - Group 25fltp
 
-**Course:** CISC 886 – Cloud Computing | Queen's University
+**Course:** CISC 886 - Cloud Computing, Queen's University  
+**Project:** End-to-end cloud-based e-commerce BI chatbot  
+**Region:** `us-east-1`  
+**Live demo:** `http://<ec2_public_ip>:3000`
 
-**Team members:** Data Engineering, Model Fine-Tuning, Deployment
-
-**Group ID:** 25fltp
-
-**Live Demo:** `http://<EC2-Elastic-IP>:3000`
-
----
-
-## Project Overview
-
-This project implements an end-to-end cloud-based conversational chatbot specialized for **e-commerce business intelligence**. The chatbot processes the Amazon Reviews 2023 dataset across 9 categories, fine-tunes a lightweight LLM (TinyLlama-1.1B) using QLoRA, and deploys it on AWS EC2 with a RAG-augmented web interface.
-
-### What the Chatbot Does
-
-The chatbot answers three core categories of business queries (and more):
-
-| Query Type | Description | Example |
-|------------|-------------|---------|
-| **SWOT Analysis** | Structured strengths, weaknesses, opportunities, threats | "SWOT analysis for Amazon in e-commerce" |
-| **Competitor Comparison** | Multi-dimensional comparison across dimensions | "Compare Amazon vs Walmart vs Alibaba" |
-| **Market Trends** | Current and emerging e-commerce trends | "What are the latest e-commerce trends?" |
-| **Product Category** | Category-specific insights | "Analyze the Electronics category" |
-| **Customer Sentiment** | Sentiment analysis of reviews | "What do customers say about Pet Supplies?" |
-| **Pricing & Delivery** | Price and shipping analysis | "Compare pricing strategies" |
-| **Review Intelligence** | Deep review analysis | "Summarize reviews for Home products" |
-
-### Categories Covered (9/9)
-
-Electronics, Clothing_Shoes_and_Jewelry, Home_and_Kitchen, Books, Sports_and_Outdoors, Beauty_and_Personal_Care, Toys_and_Games, Grocery_and_Gourmet_Food, Pet_Supplies
+This repository contains the full replication workflow for an AWS-based chatbot pipeline. The system preprocesses Amazon Reviews 2023 data with PySpark on Amazon EMR, fine-tunes TinyLlama-1.1B with QLoRA in Google Colab, exports the model to GGUF, and deploys it on EC2 with Ollama and OpenWebUI.
 
 ---
 
-## System Architecture
+## 1. Repository Structure
 
-![Architecture Diagram](img/architecture_diagram.gif)
-
----
-
-## Repository Structure
-
-```
+```text
 25fltp-ecom-chatbot/
-├── README.md                         # This file
-├── .gitignore
-├── training/
-│   ├── finetune.ipynb               # Original (Electronics only, 7,256 examples)
-│   └── finetune_all_categories.ipynb # NEW (All 9 categories, ~65,000 examples)
-├── terraform/
-│   ├── main.tf                      # Complete infrastructure (VPC + EMR + EC2 + S3)
-│   ├── variables.tf                 # All variables (including EMR instance types)
-│   ├── terraform.tfvars.example      # Template for deployment
-│   └── user_data.sh                 # Cloud-init script for EC2 auto-provisioning
+├── README.md
+├── scripts/
+│   ├── run_emr.py                  # Optional: downloads raw category files then preprocesses
+│   └── run_emr_fast.py             # Final used path: preprocessing-only EMR run
 ├── spark/
-│   ├── spark_preprocess.py          # PySpark ETL pipeline
-│   ├── run_commands.sh              # Manual EMR commands
+│   ├── spark_preprocess.py         # PySpark ETL and instruction-generation pipeline
 │   └── scripts/
-│       └── emr_bootstrap.sh        # Bootstrap for EMR nodes
+│       └── emr_bootstrap.sh        # EMR bootstrap dependencies
+├── training/
+│   └── finetune.ipynb              # QLoRA fine-tuning notebook
+├── terraform/
+│   ├── main.tf                     # VPC, subnet, SGs, IAM, S3, EC2
+│   ├── variables.tf
+│   ├── terraform.tfvars.example
+│   └── user_data.sh                # EC2 bootstrap for Ollama/OpenWebUI
 ├── deployment/
-│   ├── deploy_commands.md           # SSH + Modelfile commands
-│   ├── backend_rag.py               # RAG layer with FAISS
-│   └── model_load_instructions.md   # GGUF loading guide
+│   ├── deploy_commands.md
+│   ├── model_load_instructions.md
+│   ├── backend_rag.py
+│   └── knowledge/
+└── img/
+    └── architecture_diagram.gif
 ```
 
 ---
 
-## Prerequisites
+## 2. Prerequisites
 
-- **AWS Account** with programmatic access (IAM credentials)
-- **AWS Region:** us-east-1
-- **Python:** 3.10+
-- **Google Colab** with T4 GPU runtime (free tier)
-- **GitHub Account** for repository
-- **AWS CLI** configured locally (`aws configure`)
-- **Key Pair:** `25fltp-ecom-key` created in AWS EC2
+Install and configure the following before running the pipeline:
 
----
+- AWS CLI configured with `aws configure`
+- Terraform
+- Python 3.10+
+- Existing AWS key pair named `25fltp-ecom-key`
+- Google Colab with T4 GPU runtime
+- Access to the S3 bucket name `25fltp-ecom-chatbot`
 
-## Step-by-Step Workflow
+The expected AWS region is:
 
-### Data Preprocessing (PySpark on EMR)
-
-**Purpose:** Process raw Amazon reviews data into structured train/val/test sets.
-
-**Files:**
-- `spark/spark_preprocess.py` — Main PySpark pipeline
-- `spark/run_commands.sh` — Manual EMR commands
-- `spark/scripts/emr_bootstrap.sh` — Node bootstrap script
-
-**Execution:**
 ```bash
-# Launch EMR cluster (via Terraform or manual)
-aws emr create-cluster \
-  --name "25fltp-ecom-spark-cluster" \
-  --release-label emr-7.1.0 \
-  --instance-type m6i.2xlarge \
-  --instance-count 3 \
-  --ec2-attributes KeyName=25fltp-ecom-key,SubnetId=<subnet-id> \
-  --applications Name=Spark
-
-# Submit Spark job
-aws emr add-steps --cluster-id j-<CLUSTER_ID> \
-  --steps Type=Spark,Name=EcomPreprocess,Args=[--deploy-mode,cluster,s3://25fltp-ecom-chatbot/code/spark_preprocess.py]
+us-east-1
 ```
 
-**Output:** `s3://25fltp-ecom-chatbot/processed/` (train.jsonl, val.jsonl, test.jsonl)
-
-**EDA Statistics (Across 9 Categories):**
-- **Train:** 360,277 samples (Avg Length: 285.9 chars)
-- **Val:** 44,874 samples (Avg Length: 284.6 chars)
-- **Test:** 44,849 samples (Avg Length: 286.9 chars)
-- **Total Dataset:** 450,000 processed reviews.
-- **Top Detected Topic:** Quality
 ---
 
-### Model Fine-Tuning (QLoRA → GGUF)
+## 3. Phase 1 - Provision Base Infrastructure with Terraform
 
-**Purpose:** Fine-tune TinyLlama-1.1B on e-commerce BI instruction data, export to GGUF.
+Start by creating the VPC, subnet, route table, security groups, S3 bucket, and IAM roles. The EC2 instance should be created after the fine-tuned GGUF model has been uploaded to S3.
 
-**Files:**
-- `training/finetune_all_categories.ipynb` — Unified notebook for all 9 categories
-- `deployment/model_load_instructions.md` — GGUF loading guide
-- `deployment/backend_rag.py` — RAG layer
-
-**Execution (Google Colab):**
-1. Open `training/finetune_all_categories.ipynb`
-2. Runtime → Change runtime → **T4 GPU**
-3. Run BLOCK 1-15 sequentially
-
-**Steps Overview:**
-| Step | Purpose |
-|-------|---------|
-| 1 | Install Dependencies (Unsloth, transformers, trl, peft, awscli) |
-| 2 | S3 Login & Download Data (Total 360,277 training samples downloaded) |
-| 3 | Load Model & Base Test (unsloth/tinyllama-chat-bnb-4bit) |
-| 4 | Apply LoRA Adapters (r=16, alpha=16, dropout=0) |
-| 5 | Dataset & Formatting (Subset to 70,000 samples: 63k train / 7k eval) |
-| 6 | Hyperparameter Table (LR=2e-4, batch=2, grad_accum=4, steps=500) |
-| 7 | Train Model (Early stopped at ~291 steps due to convergence) |
-| 8 | Training Summary (Calculated 83.72% loss improvement and plotted curves) |
-| 9 | Final Inference Test (SWOT, Risk Assessment, Market Forecast) |
-
-**GGUF Output Path:**
+```bash
+cd terraform
+cp terraform.tfvars.example terraform.tfvars
+terraform init
 ```
-./outputs/ecom_chatbot_gguf_gguf_gguf_gguf/tinyllama-chat.Q4_K_M.gguf
-```
-*(Unsloth 2026.4.8 uses quadruple-nested directories)*
 
-**Upload to S3:**
+Apply the base infrastructure first:
+
+```bash
+terraform apply \
+  -target=aws_vpc.main \
+  -target=aws_internet_gateway.main \
+  -target=aws_subnet.public \
+  -target=aws_route_table.main \
+  -target=aws_route_table_association.public \
+  -target=aws_security_group.ec2_sg \
+  -target=aws_security_group.emr_sg \
+  -target=aws_s3_bucket.main \
+  -target=aws_iam_role.emr_service_role \
+  -target=aws_iam_role_policy_attachment.emr_service \
+  -target=aws_iam_role.emr_ec2_role \
+  -target=aws_iam_role_policy_attachment.emr_ec2 \
+  -target=aws_iam_instance_profile.emr_profile \
+  -target=aws_iam_instance_profile.ec2_profile
+```
+
+Check Terraform outputs:
+
+```bash
+terraform output
+```
+
+The EMR launcher reads the subnet ID from Terraform output, so this step must finish before running EMR.
+
+---
+
+## 4. Phase 2 - Prepare S3 Prefixes
+
+Create the expected S3 prefixes. The PySpark pipeline reads raw category files from `raw_input/<category>/` and writes outputs to `processed/`.
+
+```bash
+cd ..
+aws s3api put-object --bucket 25fltp-ecom-chatbot --key raw_input/
+aws s3api put-object --bucket 25fltp-ecom-chatbot --key processed/
+aws s3api put-object --bucket 25fltp-ecom-chatbot --key model/
+aws s3api put-object --bucket 25fltp-ecom-chatbot --key logs/
+aws s3api put-object --bucket 25fltp-ecom-chatbot --key scripts/
+aws s3api put-object --bucket 25fltp-ecom-chatbot --key code/
+aws s3api put-object --bucket 25fltp-ecom-chatbot --key deployment/
+```
+
+If the raw category files are not already staged in S3, use `scripts/run_emr.py`. It downloads the nine category JSONL files to `raw_input/` and then runs preprocessing.
+
+```bash
+python scripts/run_emr.py
+```
+
+If the raw category files are already staged in S3, use the faster preprocessing-only launcher used for the final run:
+
+```bash
+python scripts/run_emr_fast.py
+```
+
+The final run uses:
+
+```text
+Cluster name: 25fltp-FAST-PREPROCESS-PIPELINE
+Release: emr-7.1.0
+Applications: Spark, Hadoop
+Instance type: m6i.xlarge
+Instance count: 3
+Max per category: 50,000
+Output: s3://25fltp-ecom-chatbot/processed/
+Auto-terminate: enabled
+```
+
+Monitor the EMR cluster:
+
+```bash
+aws emr list-clusters --active --region us-east-1
+aws emr describe-cluster --cluster-id <cluster-id> --region us-east-1
+```
+
+Expected processed outputs:
+
+```text
+s3://25fltp-ecom-chatbot/processed/train.jsonl/
+s3://25fltp-ecom-chatbot/processed/val.jsonl/
+s3://25fltp-ecom-chatbot/processed/test.jsonl/
+```
+
+Final EDA statistics used in the report:
+
+| Split | Samples | Avg. character length |
+|---|---:|---:|
+| Train | 360,277 | 285.91 |
+| Validation | 44,874 | 284.65 |
+| Test | 44,849 | 286.99 |
+| Total | 450,000 | 285.85 |
+
+---
+
+## 5. Phase 3 - Fine-Tune the Model in Google Colab
+
+Open the training notebook:
+
+```text
+training/finetune.ipynb
+```
+
+Use a T4 GPU runtime and run the notebook cells in order. The notebook downloads the processed JSONL data from S3, formats the text field, applies QLoRA adapters to TinyLlama, trains on a 70,000-record subset, evaluates the model, and exports the final model to GGUF.
+
+Fine-tuning configuration:
+
+| Parameter | Value |
+|---|---|
+| Base model | `unsloth/tinyllama-chat-bnb-4bit` |
+| Fine-tuning method | QLoRA / PEFT |
+| Training subset | 70,000 samples |
+| Train/eval split | 63,000 / 7,000 |
+| Batch size | 2 |
+| Gradient accumulation | 4 |
+| Effective batch size | 8 |
+| Learning rate | `2e-4` |
+| Epoch setting | 1 |
+| Max optimizer steps | 300 |
+| LoRA rank | 16 |
+| LoRA alpha | 16 |
+| LoRA dropout | 0 |
+| Context length | 2048 |
+| Final validation loss | 0.3908 |
+| GGUF quantization | `Q4_K_M` |
+
+After export, upload the GGUF model to S3:
+
 ```bash
 aws s3 cp ./outputs/ecom_chatbot_gguf_gguf_gguf_gguf/tinyllama-chat.Q4_K_M.gguf \
   s3://25fltp-ecom-chatbot/model/tinyllama-chat.Q4_K_M.gguf
 ```
 
+If the nested Unsloth export path changes, locate the file with:
+
+```bash
+find ./outputs -name "*.gguf" -type f
+```
+
 ---
 
-### Deployment (EC2 + Ollama + OpenWebUI)
+## 6. Phase 4 - Upload Deployment Files to S3
 
-**Purpose:** Deploy GGUF model on EC2 with RAG-augmented web interface.
+The EC2 `user_data.sh` script expects the RAG backend and knowledge files under the `deployment/` prefix.
 
-**Files:**
-- `terraform/main.tf` — Complete infrastructure (VPC + EMR + EC2 + S3)
-- `terraform/user_data.sh` — Cloud-init auto-provisioning
-- `deployment/deploy_commands.md` — SSH commands and Modelfile
+```bash
+aws s3 cp deployment/backend_rag.py s3://25fltp-ecom-chatbot/deployment/backend_rag.py
+aws s3 cp deployment/knowledge/ s3://25fltp-ecom-chatbot/deployment/knowledge/ --recursive
+```
 
-**Deployment via Terraform:**
+---
+
+## 7. Phase 5 - Deploy EC2, Ollama, and OpenWebUI
+
+After the GGUF model is in S3, apply the full Terraform configuration to create the EC2 chatbot server.
+
 ```bash
 cd terraform
-cp terraform.tfvars.example terraform.tfvars
-# Edit terraform.tfvars: set allowed_ip to your IP (e.g., "203.0.113.42/32")
-terraform init
 terraform apply
 ```
 
-**Manual SSH:**
+Terraform provisions the EC2 instance and passes `user_data.sh` to the server. The bootstrap script installs Ollama, downloads `tinyllama-chat.Q4_K_M.gguf` from S3, registers the model as `ecom-chatbot`, installs OpenWebUI and RAG dependencies, enables Ollama, and starts OpenWebUI on port 3000.
+
+Get the public IP:
+
+```bash
+terraform output ec2_public_ip
+```
+
+Open the interface in a browser:
+
+```text
+http://<ec2_public_ip>:3000
+```
+
+---
+
+## 8. Phase 6 - Verification Commands
+
+SSH into the EC2 instance:
+
 ```bash
 ssh -i 25fltp-ecom-key.pem ubuntu@<ec2_public_ip>
+```
 
-# Verify Ollama
+Verify the model is registered in Ollama:
+
+```bash
 ollama list
-# Should show: ecom-chatbot
+```
 
-# Test model
-ollama run ecom-chatbot "Give me a SWOT analysis for Amazon"
+Expected model name:
 
-# Access OpenWebUI
-# http://<ec2_public_ip>:3000
+```text
+ecom-chatbot:latest
+```
+
+Test the Ollama API:
+
+```bash
+curl http://localhost:11434/api/generate -d '{
+  "model": "ecom-chatbot",
+  "prompt": "Perform a SWOT analysis for a new organic coffee brand entering the Amazon US market.",
+  "stream": false
+}'
+```
+
+Check OpenWebUI:
+
+```bash
+ps aux | grep open-webui | grep -v grep
+curl -I http://localhost:3000
 ```
 
 ---
 
-## Terraform Infrastructure (Group 25fltp)
+## 9. AWS Cost Summary
 
-### Resources Created
-| Resource | Name | Purpose |
-|----------|------|---------|
-| VPC | 25fltp-ecom-vpc | Network isolation (10.0.0.0/16) |
-| Subnet | 25fltp-ecom-public-subnet | EC2 + EMR deployment |
-| EMR Cluster | 25fltp-ecom-spark-cluster | PySpark preprocessing |
-| EC2 Instance | 25fltp-ecom-chatbot-ec2 | Ollama + OpenWebUI |
-| S3 Bucket | 25fltp-ecom-chatbot | Model + data storage |
-| S3 Bucket (State) | 25fltp-terraform-state | Terraform backend |
-| Security Group | 25fltp-ec2-sg | SSH (22) + HTTP (3000) |
-| Security Group | 25fltp-emr-sg | EMR internal communication |
-| IAM Role | 25fltp-ec2-s3-role | EC2 → S3 access |
-| IAM Role | 25fltp-emr-role | EMR → S3 + EC2 access |
+This cost table reflects the short project execution window, not a full monthly production deployment.
 
-### Terraform Outputs
+| Service | Usage estimate | Approx. cost |
+|---|---|---:|
+| Amazon EMR | 3-node `m6i.xlarge` cluster for about 0.5 hours | $0.36 |
+| Amazon EC2 | `t3.xlarge` instance for about 4 hours of deployment/testing | $0.66 |
+| Amazon S3 | About 136 GB stored briefly for raw data, processed data, logs, and model artifacts | $0.73 |
+| Data transfer | Minimal same-region transfer in `us-east-1` | $0.00 |
+| **Total** | Short execution estimate | **$1.75** |
+
+The AWS Pricing Calculator screenshot in the report shows a monthly reference estimate of about $98.86. The project execution estimate is lower because EMR and EC2 were used for short windows and EMR was terminated after preprocessing.
+
+---
+
+## 10. Troubleshooting
+
+### EMR fails because raw files are missing
+
+Use the downloader pipeline:
+
 ```bash
-terraform output  # Shows:
-# ec2_public_ip    = "54.123.456.789"
-# openwebui_url   = "http://54.123.456.789:3000"
-# emr_cluster_id  = "j-XXXXXXXX"
-# s3_model_path   = "s3://25fltp-ecom-chatbot/model/tinyllama-chat.Q4_K_M.gguf"
+python scripts/run_emr.py
 ```
 
----
+Or manually upload category files under:
 
----
+```text
+s3://25fltp-ecom-chatbot/raw_input/<Category>/<Category>.jsonl
+```
 
-## Model Card
+### GGUF file is not found
 
-| Property | Value |
-|----------|-------|
-| Model | unsloth/tinyllama-chat-bnb-4bit |
-| Parameters | 1.1 billion |
-| Fine-Tuning Method | QLoRA (4-bit + LoRA r=16, alpha=16, dropout=0) |
-| Training Data | 70,000 samples (63k train, 7k val) across 9 categories |
-| Epochs | 1 |
-| Max Steps | 500 (Early stopped at ~291) |
-| Batch Size | 2 (effective 8 with gradient accumulation=4) |
-| Learning Rate | 2e-4 |
-| Context Length | 2048 tokens |
-| GGUF Quantization | Q4_K_M (~668 MB) |
-| Final Loss | 0.4038 (Train), 0.3906 (Validation) |
-
----
-
-## AWS Cost Estimate
-
-| Service | Usage | Est. Cost |
-|---------|-------|-----------|
-| Amazon S3 | ~10 GB storage | ~$1.50/month |
-| Amazon EMR | 1 cluster × ~2 hours (m6i.2xlarge × 3) | ~$10.00 |
-| Amazon EC2 | t3.xlarge × ~48 hours | ~$15.00 |
-| Data Transfer | ~5 GB outbound | ~$0.50 |
-| **Total** | | **~$23.00** |
-
-> Always terminate EMR immediately after processing to save costs.
-
----
-
-## Troubleshooting
-
-### GGUF Path Not Found
 ```bash
-# Unsloth 2026.4.8 creates quadruple-nested path
 find ./outputs -name "*.gguf" -type f
-# Expected: ./outputs/ecom_chatbot_gguf_gguf_gguf_gguf/tinyllama-chat.Q4_K_M.gguf
 ```
 
-### Ollama Not Running
+Then upload the discovered `.gguf` file to:
+
+```text
+s3://25fltp-ecom-chatbot/model/tinyllama-chat.Q4_K_M.gguf
+```
+
+### Ollama is not responding
+
 ```bash
-systemctl status ollama
+sudo systemctl status ollama
 sudo systemctl restart ollama
-ollama list
+curl http://localhost:11434/api/tags
 ```
 
-### OpenWebUI Cannot Connect
-```bash
-export OLLAMA_BASE_URL="http://localhost:11434"
-open-webui serve --port 3000
-```
+### OpenWebUI is not visible in the browser
 
-### S3 Permissions Denied
+Confirm the process is running and that port 3000 is open in the EC2 security group:
+
 ```bash
-# Verify IAM role attached
-aws ec2 describe-iam-instance-profile-associations --instance-id <id>
+ps aux | grep open-webui | grep -v grep
+curl -I http://localhost:3000
 ```
 
 ---
 
----
+## 11. References
 
-
-## References
-
-- TinyLlama: Zhang et al., arXiv:2401.02385 (2024)
-- LoRA: Hu et al., ICLR 2022
-- QLoRA: Dettmers et al., NeurIPS 2023
-- Amazon Reviews 2023: Hou et al., arXiv:2403.03952 (2024)
+- TinyLlama: Zhang et al., 2024
+- LoRA: Hu et al., 2022
+- QLoRA: Dettmers et al., 2023
+- Amazon Reviews 2023: Hou et al., 2024
 - Unsloth: https://unsloth.ai
 - Ollama: https://ollama.com
 - OpenWebUI: https://openwebui.com
