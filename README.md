@@ -195,6 +195,8 @@ Fine-tuning configuration:
 | Final validation loss | 0.3908 |
 | GGUF quantization | `Q4_K_M` |
 
+![Training vs Validation Loss](img/training_val_loos.png)
+
 After export, upload the GGUF model to S3:
 
 ```bash
@@ -282,6 +284,8 @@ Check OpenWebUI:
 ps aux | grep open-webui | grep -v grep
 curl -I http://localhost:3000
 ```
+
+![Chat Interaction 1](img/chat_answer_question1.png)
 
 ---
 
